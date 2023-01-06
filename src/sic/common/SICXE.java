@@ -188,6 +188,6 @@ public class SICXE {
     public static final int DEVICE_STDIN = 0;
     public static final int DEVICE_STDOUT = 1;
     public static final int DEVICE_STDERR = 2;
-    public static final int DEVICE_FREE = 3;
+    public static final int DEVICE_FREE = 8;
 
 }

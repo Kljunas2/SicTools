@@ -18,6 +18,7 @@ public class Machine {
     // ************ Machine parts
 
     public final Registers registers;
+    public static Registers sRegisters;
     public final Memory memory;
     public final Devices devices;
 
@@ -37,6 +38,7 @@ public class Machine {
 
     public Machine() {
         this.registers = new Registers();
+        Machine.sRegisters = registers;
         this.memory = new Memory(MAX_ADDRESS+1);
         this.devices = new Devices(MAX_DEVICE+1);
         this.lastExecRead = new MemorySpan();

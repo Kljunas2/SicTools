@@ -63,6 +63,11 @@ public class Devices {
         setDevice(SICXE.DEVICE_STDIN, new InputDevice(System.in));
         setDevice(SICXE.DEVICE_STDOUT, new OutputDevice(System.out));
         setDevice(SICXE.DEVICE_STDERR, new OutputDevice(System.err));
+        setDevice(3, new Fsystem.File());
+        setDevice(4, new Fsystem.Address(0));
+        setDevice(5, new Fsystem.Address(1));
+        setDevice(6, new Fsystem.Address(2));
+        setDevice(7, new Fsystem.Operation());
         for (int i = SICXE.DEVICE_FREE; i < count; i++)
             setDevice(i, new FileDevice(Conversion.byteToHex(i) + ".dev"));
     }
