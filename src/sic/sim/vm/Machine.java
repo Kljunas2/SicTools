@@ -21,6 +21,13 @@ public class Machine {
     public final Memory memory;
     public final Devices devices;
 
+
+    private int timer = 0;
+    private Interrupt svcInt = null;
+    private Interrupt programInt = null;
+    private Interrupt timerInt = null;
+    private Interrupt ioInt = null;
+
     // ************ Statistics
 
     private int instructionCount;
@@ -106,7 +113,7 @@ public class Machine {
         return true;
     }
 
-    private boolean execF2(int opcode, int operand) {
+    private boolean execF2(int opcode, int operand) throws ReadDataBreakpointException, WriteDataBreakpointException {
         // Format 2: OP o1, o2 - two 4-bit operands
         int o1 = (operand & 0xF0) >> 4;
         int o2 = (operand & 0x0F);
@@ -122,15 +129,22 @@ public class Machine {
                             registers.set(o2, registers.gets(o2) / divisor);
                     }
                     break;
-            case Opcode.COMPR:	registers.setSWAfterCompare(registers.gets(o1) - registers.gets(o2)); break;
+            case Opcode.COMPR:	registers.setCC(registers.gets(o1) - registers.gets(o2)); break;
             case Opcode.SHIFTL:	registers.set(o1, registers.get(o1) << (o2 + 1) | registers.get(o1) >> (24 - o2 - 1)); break;
             case Opcode.SHIFTR:	registers.set(o1, registers.gets(o1) >> (o2 + 1)); break;
             case Opcode.RMO:	registers.set(o2, registers.get(o1)); break;
             case Opcode.CLEAR:	registers.set(o1, 0); break;
             case Opcode.TIXR:	registers.setX(registers.getX()+1);
-                                registers.setSWAfterCompare(registers.getXs() - registers.gets(o1));
+                                registers.setCC(registers.getXs() - registers.gets(o1));
                 break;
-            case Opcode.SVC:	notImplemented("SVC"); break;
+            case Opcode.SVC:
+                if (!registers.intEnabled(Interrupt.IClass.SVC)) {
+                    Logger.fmterr("SVC is disabled");
+                    break;
+                }
+                registers.setICODE(operand);
+                svcInt = new Interrupt(Interrupt.IClass.SVC, operand);
+                break;
             default: return false;
         }
         return true;
@@ -188,6 +202,18 @@ public class Machine {
         memory.setFloat(addr, _float);
     }
 
+    public void lps(int addr) throws ReadDataBreakpointException {
+        registers.setSW(memory.getWord(addr+6));
+        registers.setPC(memory.getWord(addr+9));
+        registers.setA(memory.getWord(addr+12));
+        registers.setX(memory.getWord(addr+15));
+        registers.setL(memory.getWord(addr+18));
+        registers.setB(memory.getWord(addr+21));
+        registers.setS(memory.getWord(addr+24));
+        registers.setT(memory.getWord(addr+27));
+        registers.setF(memory.getFloat(addr+30));
+    }
+
     private boolean execSICF3F4(int opcode, Flags flags, int operand) throws DataBreakpointException {
         // Formats: SIC, F3, F4
         switch (opcode) {
@@ -233,24 +259,24 @@ public class Machine {
                     break;
             case Opcode.AND:	registers.setA(registers.getA() & loadWord(flags, operand)); break;
             case Opcode.OR:		registers.setA(registers.getA() | loadWord(flags, operand)); break;
-            case Opcode.COMP:	registers.setSWAfterCompare(registers.getAs() - SICXE.swordToInt(loadWord(flags, operand))); break;
+            case Opcode.COMP:	registers.setCC(registers.getAs() - SICXE.swordToInt(loadWord(flags, operand))); break;
             case Opcode.TIX:	registers.setX(registers.getX() + 1);
-                                registers.setSWAfterCompare(registers.getXs() - SICXE.swordToInt(loadWord(flags, operand))); break;
+                                registers.setCC(registers.getXs() - SICXE.swordToInt(loadWord(flags, operand))); break;
             // input/output
             case Opcode.RD:		registers.setALo(devices.read(loadByte(flags, operand)));  break;
             case Opcode.WD:		devices.write(loadByte(flags, operand), registers.getALo()); break;
-            case Opcode.TD:		registers.setSWAfterCompare(devices.test(loadByte(flags, operand)) ? -1 : 0); break;
+            case Opcode.TD:		registers.setCC(devices.test(loadByte(flags, operand)) ? -1 : 0); break;
             // floating point arithmetic
             case Opcode.ADDF:	registers.setF(registers.getF() + loadFloat(flags, operand)); break;
             case Opcode.SUBF:	registers.setF(registers.getF() - loadFloat(flags, operand)); break;
             case Opcode.MULF:	registers.setF(registers.getF() * loadFloat(flags, operand)); break;
             case Opcode.DIVF:	registers.setF(registers.getF() / loadFloat(flags, operand)); break;
             case Opcode.COMPF:  double sub = registers.getF() - loadFloat(flags, operand);
-                                registers.setSWAfterCompare(sub > 0 ? 1 : (sub < 0 ? -1 : 0));
+                                registers.setCC(sub > 0 ? 1 : (sub < 0 ? -1 : 0));
                                 break;
             // others
-            case Opcode.LPS:	notImplemented("LPS"); break;
-            case Opcode.STI:	notImplemented("STI"); break;
+            case Opcode.LPS:	lps(operand); break;
+            case Opcode.STI:	timer = loadWord(flags, operand); break;
             case Opcode.SSK:	notImplemented("SSK"); break;
             default: return false;
         }
@@ -272,54 +298,56 @@ public class Machine {
         lastExecAddr.setSpanLength(0);
         // fetch first byte
         int opcode = fetch();
-        // try format 1
-        if (execF1(opcode)) {
+        if (Opcode.isF1(opcode)) {
+            execF1(opcode);
             lastExecAddr.setSpanLength(1);
-            return;
-        }
-        // fetch one more byte
-        int op = fetch();
-        // try format 2
-        if (execF2(opcode, op)) {
+        } else if (Opcode.isF2(opcode)) {
+            int op = fetch();
+            execF2(opcode, op);
             lastExecAddr.setSpanLength(2);
-            return;
-        }
-        // otherwise it is format SIC, F3 or F4
-        Flags flags = new Flags(opcode, op);
-        int instructionSize = 0;
-        // operand depends on instruction format
-        int operand;
-        // check if standard SIC
-        if (flags.isSic()) {
-            operand = flags.operandSic(op, fetch());
-            instructionSize = 3;
-            // check if F4 (extended)
-        } else if (flags.isExtended()) {
-            operand = flags.operandF4(op, fetch(), fetch());
-            if (flags.isRelative()) invalidAddressing();
-            instructionSize = 4;
-            // otherwise it is F3
-        } else {
-            instructionSize = 3;
-            operand = flags.operandF3(op, fetch());
-            if (flags.isPCRelative())
-                operand = flags.operandPCRelative(operand) + registers.getPC();
-            else if (flags.isBaseRelative())
-                operand += registers.getB();
-            else if (!flags.isAbsolute())
-                invalidAddressing();  // both PC and base at the same time
-        }
-        // SIC, F3, F4 -- all support indexed addressing, but only when simple TA calculation used
-        if (flags.isIndexed())
-            if (flags.isSimple()) operand += registers.getXs();
-            else if(flags.isIndirect()) indirectX = true;
-            else invalidAddressing();
-        // try to execute
-        if (execSICF3F4(opcode & 0xFC, flags, operand)) {
+        } else if (Opcode.isF34(opcode & 0xFC)) {
+            int op = fetch();
+            Flags flags = new Flags(opcode, op);
+            int instructionSize = 0;
+            // operand depends on instruction format
+            int operand;
+            // check if standard SIC
+            if (flags.isSic()) {
+                operand = flags.operandSic(op, fetch());
+                instructionSize = 3;
+                // check if F4 (extended)
+            } else if (flags.isExtended()) {
+                operand = flags.operandF4(op, fetch(), fetch());
+                if (flags.isRelative()) invalidAddressing();
+                instructionSize = 4;
+                // otherwise it is F3
+            } else {
+                instructionSize = 3;
+                operand = flags.operandF3(op, fetch());
+                if (flags.isPCRelative())
+                    operand = flags.operandPCRelative(operand) + registers.getPC();
+                else if (flags.isBaseRelative())
+                    operand += registers.getB();
+                else if (!flags.isAbsolute())
+                    invalidAddressing();  // both PC and base at the same time
+            }
+            // SIC, F3, F4 -- all support indexed addressing, but only when simple TA calculation used
+            if (flags.isIndexed())
+                if (flags.isSimple()) operand += registers.getXs();
+                else if(flags.isIndirect()) indirectX = true;
+                else invalidAddressing();
+            // try to execute
+            execSICF3F4(opcode & 0xFC, flags, operand);
             lastExecAddr.setSpanLength(instructionSize);
-            return;
+        } else {
+            invalidOpcode(opcode);
         }
-        invalidOpcode(opcode);
+        timer--;
+        //System.out.printf("timer: %d%n", timer);
+        if (timer <= 0 && registers.intEnabled(Interrupt.IClass.TIMER)) {
+            timerInt = new Interrupt(Interrupt.IClass.TIMER, 0);
+        }
+        triggerInterrupts();
     }
 
 
@@ -347,6 +375,26 @@ public class Machine {
     public Integer getAddressBelowLastJSUB() {
         if (this.addressBelowJSUB.isEmpty()) return null;
         else return this.addressBelowJSUB.peek();
+    }
+
+    public void triggerInterrupts() throws ReadDataBreakpointException, WriteDataBreakpointException {
+        // setting interrupt to null clears it
+        if (svcInt != null) {
+            svcInt.trigger(registers, memory);
+            svcInt = null;
+        } else if (programInt != null) {
+            programInt.trigger(registers, memory);
+            programInt = null;
+        } else if (timerInt != null) {
+            timerInt.trigger(registers, memory);
+            timerInt = null;
+        } else if (ioInt != null) {
+            // does it get cleared automatically?
+            // I think on most architectures the interrupt handler must
+            // clear the interrupt manually.
+            ioInt.trigger(registers, memory);
+            ioInt = null;
+        }
     }
 
 }

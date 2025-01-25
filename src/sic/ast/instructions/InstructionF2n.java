@@ -25,7 +25,7 @@ public class InstructionF2n extends InstructionF2Base {
 
     @Override
     public void emitRawCode(byte[] data, int loc) {
-        emitRawCode(data, loc, number, 0);
+        emitRawCode(data, loc, (number>>4)&0xf, number&0xf);
     }
 
     @Override

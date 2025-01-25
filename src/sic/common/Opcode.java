@@ -104,6 +104,86 @@ public class Opcode {
         "TD", null, "STSW", "SSK", "SIO", "HIO", "TIO", null
     };
 
+    public static boolean isF1(int opcode) {
+        switch (opcode) {
+        case FLOAT:
+        case FIX:
+        case NORM:
+        case SIO:
+        case HIO:
+        case TIO:
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isF2(int opcode) {
+        switch (opcode) {
+        case ADDR:
+        case SUBR:
+        case MULR:
+        case DIVR:
+        case COMPR:
+        case SHIFTL:
+        case SHIFTR:
+        case RMO:
+        case CLEAR:
+        case TIXR:
+        case SVC:
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isF34(int opcode) {
+        switch (opcode) {
+        case STA:
+        case STX:
+        case STL:
+        case STCH:
+        case STB:
+        case STS:
+        case STF:
+        case STT:
+        case STSW:
+        case JEQ:
+        case JGT:
+        case JLT:
+        case J:
+        case RSUB:
+        case JSUB:
+        case LDA:
+        case LDX:
+        case LDL:
+        case LDCH:
+        case LDB:
+        case LDS:
+        case LDF:
+        case LDT:
+        case ADD:
+        case SUB:
+        case MUL:
+        case DIV:
+        case AND:
+        case OR:
+        case COMP:
+        case TIX:
+        case RD:
+        case WD:
+        case TD:
+        case ADDF:
+        case SUBF:
+        case MULF:
+        case DIVF:
+        case COMPF:
+        case LPS:
+        case STI:
+        case SSK:
+            return true;
+        }
+        return false;
+    }
+
     public static String getName(int opcode) {
         // 0 <= opcode <= 256
         return opcodeToNames[opcode >> 2];
