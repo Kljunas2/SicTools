@@ -17,24 +17,46 @@ public class Interrupt {
         }
     }
 
+    public enum ProgICODE {
+        ILLEGAL_INSTRUCTION(0x00),
+        PRIVILEGED_INSTRUCTION(0x01),
+        ADDR_OUT_OF_RANGE(0x02),
+        MEM_PROTECT(0x03),
+        OVERFLOW(0x04),
+        PAGE_FAULT(0x10),
+        SEG_FAULT(0x11),
+        SEG_PROTECTION_VIOLATION(0x12),
+        SEG_LEN_EXCEEDED(0x13);
+
+        public final int value;
+
+        ProgICODE(int value) {
+            this.value = value;
+        }
+    }
+
     public IClass CLASS;
     private int ICODE;
 
     public Interrupt(IClass iclass, int icode) {
         CLASS = iclass;
         ICODE = icode;
-        //System.out.printf("created interrupt %s, icode. 0x%x%n", CLASS.name(), ICODE);
+    }
+
+    public Interrupt(IClass iclass, ProgICODE icode) {
+        CLASS = iclass;
+        ICODE = icode.value;
     }
 
     public static int getWorkArea(IClass CLASS) {
         switch (CLASS) {
-            case IClass.SVC:
+            case SVC:
                 return 0x100;
-            case IClass.PROGRAM:
+            case PROGRAM:
                 return 0x130;
-            case IClass.TIMER:
+            case TIMER:
                 return 0x160;
-            case IClass.IO:
+            case IO:
                 return 0x190;
         }
         return -1;
@@ -60,22 +82,8 @@ public class Interrupt {
     public void trigger(Registers registers, Memory memory)  throws ReadDataBreakpointException, WriteDataBreakpointException {
         saveRegisters(registers, memory);
         int addr = Interrupt.getWorkArea(CLASS);
-        //System.out.printf("triggering interrupt %s, icode: 0x%x, jumping to: 0x%6x%n", CLASS.name(), ICODE, addr);
         registers.setSW(memory.getWord(addr));
         registers.setPC(memory.getWord(addr+3));
+        registers.setICODE(ICODE);
     }
-
-    /*
-    public enum ProgramType {
-        ILLEG_INSTR,
-        PRIVILEGED_INSTR,
-        ADDR_OUT_OF_RANGE,
-        MEM_PROTECT,
-        OVERFLOW,
-        PAGE_FAULT,
-        SEG_FAULT,
-        SEG_PROTECT_VIOLATION,
-        SEG_LEN_EXCEEDED,
-    }
-    */
 }

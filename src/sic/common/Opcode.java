@@ -106,12 +106,7 @@ public class Opcode {
 
     public static boolean isF1(int opcode) {
         switch (opcode) {
-        case FLOAT:
-        case FIX:
-        case NORM:
-        case SIO:
-        case HIO:
-        case TIO:
+        case FLOAT, FIX, NORM, SIO, HIO, TIO:
             return true;
         }
         return false;
@@ -119,66 +114,29 @@ public class Opcode {
 
     public static boolean isF2(int opcode) {
         switch (opcode) {
-        case ADDR:
-        case SUBR:
-        case MULR:
-        case DIVR:
-        case COMPR:
-        case SHIFTL:
-        case SHIFTR:
-        case RMO:
-        case CLEAR:
-        case TIXR:
-        case SVC:
+        case ADDR, SUBR, MULR, DIVR, COMPR, SHIFTL, SHIFTR, RMO, CLEAR, TIXR, SVC:
             return true;
         }
         return false;
     }
 
     public static boolean isF34(int opcode) {
+        switch (opcode & 0xFC) {
+        case STA, STX, STL, STCH, STB, STS, STF, STT, STSW, JEQ, JGT, JLT, J,
+             RSUB, JSUB, LDA, LDX, LDL, LDCH, LDB, LDS, LDF, LDT, ADD, SUB, MUL,
+             DIV, AND, OR, COMP, TIX, RD, WD, TD, ADDF, SUBF, MULF, DIVF, COMPF,
+             LPS, STI, SSK:
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isPrivileged(int opcode) {
+        if (isF34(opcode)) {
+            opcode &= 0xFC;
+        }
         switch (opcode) {
-        case STA:
-        case STX:
-        case STL:
-        case STCH:
-        case STB:
-        case STS:
-        case STF:
-        case STT:
-        case STSW:
-        case JEQ:
-        case JGT:
-        case JLT:
-        case J:
-        case RSUB:
-        case JSUB:
-        case LDA:
-        case LDX:
-        case LDL:
-        case LDCH:
-        case LDB:
-        case LDS:
-        case LDF:
-        case LDT:
-        case ADD:
-        case SUB:
-        case MUL:
-        case DIV:
-        case AND:
-        case OR:
-        case COMP:
-        case TIX:
-        case RD:
-        case WD:
-        case TD:
-        case ADDF:
-        case SUBF:
-        case MULF:
-        case DIVF:
-        case COMPF:
-        case LPS:
-        case STI:
-        case SSK:
+        case HIO, LPS, /*RD,*/ SIO, SSK, STI, STSW, TD, TIO: /*WD:*/
             return true;
         }
         return false;

@@ -26,6 +26,7 @@ import java.util.Locale;
 public class CPUView {
     private final Color colorNochange = Colors.fg;
     private final Color colorChange = Color.BLUE;
+    private final Color colorSupervisor = Color.RED;
 
     private final Executor executor;
     private final Machine machine;
@@ -47,6 +48,7 @@ public class CPUView {
     private JButton btnStartStop;
     public JPanel mainPanel;
     private JLabel lblInfo;
+    private JLabel swLabel;
 
     public CPUView(final Executor executor, final Disassembler disassembler) {
         this.executor = executor;
@@ -160,6 +162,7 @@ public class CPUView {
         updateRegWord(regT, registers.getT());
         updateRegWord(regB, registers.getB());
         updateRegWord(regSW, registers.getSW());
+        swLabel.setForeground(registers.isSupervisor() ? colorSupervisor : colorNochange);
         updateRegFloat(registers.getF());
         updateRegWord(regPC, registers.getPC());
         //
@@ -401,6 +404,7 @@ public class CPUView {
         label5.setLabelFor(regT);
         label6.setLabelFor(regB);
         label7.setLabelFor(regSW);
+        swLabel = label7;
         label8.setLabelFor(regF);
         label9.setLabelFor(regPC);
     }

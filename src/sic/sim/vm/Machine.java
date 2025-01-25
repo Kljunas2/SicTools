@@ -92,11 +92,21 @@ public class Machine {
     }
 
     private void invalidOpcode(int opcode) {
-        Logger.fmterr("Invalid opcode '%d'.", opcode);
+        if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
+            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
+                    Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
+        } else {
+            Logger.fmterr("Invalid opcode '%d'.", opcode);
+        }
     }
 
     private void invalidAddressing() {
-        Logger.err("Invalid addressing.");
+        if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
+            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
+                    Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
+        } else {
+            Logger.err("Invalid addressing.");
+        }
     }
 
     private boolean execF1(int opcode) {
@@ -124,9 +134,14 @@ public class Machine {
             case Opcode.DIVR:
                     int divisor = registers.get(o1);
                     if (divisor == 0) {
+                        if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
+                            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
+                                    Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
+                        } else {
                             System.out.println("division by zero");
+                        }
                     } else {
-                            registers.set(o2, registers.gets(o2) / divisor);
+                        registers.set(o2, registers.gets(o2) / divisor);
                     }
                     break;
             case Opcode.COMPR:	registers.setCC(registers.gets(o1) - registers.gets(o2)); break;
@@ -142,7 +157,6 @@ public class Machine {
                     Logger.fmterr("SVC is disabled");
                     break;
                 }
-                registers.setICODE(operand);
                 svcInt = new Interrupt(Interrupt.IClass.SVC, operand);
                 break;
             default: return false;
@@ -177,11 +191,11 @@ public class Machine {
     // use of TA for store: addr / addr of addr
     private int resolveAddr(Flags flags, int addr) {
         if (flags.isIndirect()) {
-			addr = memory.getWordRaw(addr);
-			if (indirectX)
-				addr += registers.getXs();
-		}
-		return addr;
+            addr = memory.getWordRaw(addr);
+            if (indirectX)
+                addr += registers.getXs();
+        }
+        return addr;
     }
 
     private void storeWord(Flags flags, int operand, int word) throws WriteDataBreakpointException {
@@ -298,14 +312,31 @@ public class Machine {
         lastExecAddr.setSpanLength(0);
         // fetch first byte
         int opcode = fetch();
-        if (Opcode.isF1(opcode)) {
+        if (Opcode.isPrivileged(opcode)
+                && !registers.isSupervisor()
+                && registers.intEnabled(Interrupt.IClass.PROGRAM)) {
+            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
+                    Interrupt.ProgICODE.PRIVILEGED_INSTRUCTION);
+            // There has to be a better way to do this.
+            // Maybe separating decode and execute.
+            if (Opcode.isF2(opcode)) {
+                fetch();
+            } else if (Opcode.isF34(opcode)) {
+                int op = fetch();
+                Flags flags = new Flags(opcode, op);
+                fetch();
+                if (flags.isExtended()) {
+                    fetch();
+                }
+            }
+        } else if (Opcode.isF1(opcode)) {
             execF1(opcode);
             lastExecAddr.setSpanLength(1);
         } else if (Opcode.isF2(opcode)) {
             int op = fetch();
             execF2(opcode, op);
             lastExecAddr.setSpanLength(2);
-        } else if (Opcode.isF34(opcode & 0xFC)) {
+        } else if (Opcode.isF34(opcode)) {
             int op = fetch();
             Flags flags = new Flags(opcode, op);
             int instructionSize = 0;
@@ -343,7 +374,6 @@ public class Machine {
             invalidOpcode(opcode);
         }
         timer--;
-        //System.out.printf("timer: %d%n", timer);
         if (timer <= 0 && registers.intEnabled(Interrupt.IClass.TIMER)) {
             timerInt = new Interrupt(Interrupt.IClass.TIMER, 0);
         }
