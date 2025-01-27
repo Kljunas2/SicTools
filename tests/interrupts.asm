@@ -44,13 +44,13 @@ add2	ADD #0x30
 	WD #1
 	LDCH #0x0a
 	WD #1
+	. This SVC interrupt will not happen because all interrupts are masked.
 	SVC 13
-
 	LPS #svc_int
 
 
 init_regs RESW 2
-	WORD 0x000800 . enable SVC, user mode
+	WORD 0x000801 . enable SVC, supervisor mode (because of WD)
 init_addr	RESW 1
 	RESW 8 . init all registers to 0
 
@@ -60,12 +60,13 @@ sw	RESW 1
 	. switch to user mode, enable interrupts
 entry	LDA #svc_handler
 	STA svc_haddr
-	LDA #program
+	LDA #main
 	STA init_addr
 	LPS #init_regs
 
-	.ORG 1000
-program	LDCH #0x41
+. main function: print A, then request two interrupts and print A (to show that
+. the register stays the same) and then B
+main	LDCH #0x41
 	WD #1
 	SVC 0x1a
 	SVC 0x2f

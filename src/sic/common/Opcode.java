@@ -121,7 +121,7 @@ public class Opcode {
     }
 
     public static boolean isF34(int opcode) {
-        switch (opcode & 0xFC) {
+        switch (opcode) {
         case STA, STX, STL, STCH, STB, STS, STF, STT, STSW, JEQ, JGT, JLT, J,
              RSUB, JSUB, LDA, LDX, LDL, LDCH, LDB, LDS, LDF, LDT, ADD, SUB, MUL,
              DIV, AND, OR, COMP, TIX, RD, WD, TD, ADDF, SUBF, MULF, DIVF, COMPF,
@@ -133,7 +133,7 @@ public class Opcode {
 
     public static boolean isPrivileged(int opcode) {
         switch (opcode) {
-        case HIO, LPS, /*RD,*/ SIO, SSK, STI, STSW, TD, TIO: /*WD:*/
+        case HIO, LPS, RD, SIO, SSK, STI, STSW, TD, TIO, WD:
             return true;
         }
         return false;

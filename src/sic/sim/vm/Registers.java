@@ -49,6 +49,7 @@ public class Registers {
 
     public void incPC() {
         if (++PC > Machine.MAX_ADDRESS) {
+            // TODO: interrupt?
             Logger.fmterr("PC register overflow.");
             PC = 0;
         }
