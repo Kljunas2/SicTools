@@ -82,7 +82,7 @@ public class Machine {
     // ********** Execution *********************
     // ********** Instruction types *********************
     private abstract class Instruction {
-        private int opcode;
+        protected int opcode;
 
         abstract public void execute() throws DataBreakpointException;
 
@@ -516,15 +516,17 @@ public class Machine {
         return instruction;
     }
 
-    public void execute() throws DataBreakpointException {
-        Instruction instruction = fetchDecode();
-        if (instruction.isPrivileged()
-                && !registers.isSupervisor()
-                && registers.intEnabled(Interrupt.IClass.PROGRAM)) {
-            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
-                    Interrupt.ProgICODE.PRIVILEGED_INSTRUCTION);
-        } else {
-            instruction.execute();
+    public void step() throws DataBreakpointException {
+        if (!registers.isIdle()) {
+            Instruction instruction = fetchDecode();
+            if (instruction.isPrivileged()
+                    && !registers.isSupervisor()
+                    && registers.intEnabled(Interrupt.IClass.PROGRAM)) {
+                programInt = new Interrupt(Interrupt.IClass.PROGRAM,
+                        Interrupt.ProgICODE.PRIVILEGED_INSTRUCTION);
+            } else {
+                instruction.execute();
+            }
         }
         timer--;
         if (timer <= 0 && registers.intEnabled(Interrupt.IClass.TIMER)) {
