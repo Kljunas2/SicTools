@@ -132,9 +132,6 @@ public class Opcode {
     }
 
     public static boolean isPrivileged(int opcode) {
-        if (isF34(opcode)) {
-            opcode &= 0xFC;
-        }
         switch (opcode) {
         case HIO, LPS, /*RD,*/ SIO, SSK, STI, STSW, TD, TIO: /*WD:*/
             return true;

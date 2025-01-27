@@ -170,7 +170,7 @@ public class Executor {
      * Step out of the current sub procedure
      */
     public void stepOut() {
-        Integer addressAfterLastJSUB = machine.getAddressBelowLastJSUB();
+        Integer addressAfterLastJSUB = machine.getReturnAddress();
         if (addressAfterLastJSUB == null) return;
         runUntil(machine -> machine.registers.getPC() == addressAfterLastJSUB);
     }
