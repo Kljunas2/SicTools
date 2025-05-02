@@ -30,7 +30,7 @@ public class Registers {
         // interrupt mask
         public int MASK = 0;
         // interrupt code
-        public int ICODE = 0;
+        public int INT_CODE = 0;
     }
 
     private StatusWord SW = new StatusWord();
@@ -156,19 +156,19 @@ public class Registers {
         }
         value |= cc<<6;
         value |= SW.MASK<<8;
-        value |= SW.ICODE<<16;
+        value |= SW.INT_CODE<<16;
         return value;
     }
 
-    public boolean isLower() {
+    public boolean ccIsLower() {
         return SW.CC < 0;
     }
 
-    public boolean isEqual() {
+    public boolean ccIsEqual() {
         return SW.CC == 0;
     }
 
-    public boolean isGreater() {
+    public boolean ccIsGreater() {
         return SW.CC > 0;
     }
 
@@ -184,8 +184,8 @@ public class Registers {
         return SW.ID;
     }
 
-    public void setICODE(int value) {
-        SW.ICODE = value & 0xff;
+    public void setIntCode(int value) {
+        SW.INT_CODE = value & 0xff;
     }
 
     public void setSW(int value) {
@@ -201,14 +201,14 @@ public class Registers {
             SW.CC = 0;
         }
         SW.MASK = (value>>8)&0xf;
-        SW.ICODE = (value>>16)&0x8;
+        SW.INT_CODE = (value>>16)&0x8;
     }
 
     public void setCC(int compare) {
         SW.CC = compare;
     }
 
-    public boolean intEnabled(Interrupt.IClass c) {
+    public boolean intEnabled(Interrupt.IntClass c) {
         return (SW.MASK & c.value) > 0;
     }
 

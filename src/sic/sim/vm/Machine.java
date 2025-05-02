@@ -138,12 +138,7 @@ public class Machine {
                 case Opcode.DIVR:
                         int divisor = registers.get(o1);
                         if (divisor == 0) {
-                            if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
-                                programInt = new Interrupt(Interrupt.IClass.PROGRAM,
-                                        Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
-                            } else {
-                                System.out.println("division by zero");
-                            }
+                            divisionByZero();
                         } else {
                             registers.set(o2, registers.gets(o2) / divisor);
                         }
@@ -163,11 +158,11 @@ public class Machine {
                     registers.setCC(registers.getXs() - registers.gets(o1));
                     break;
                 case Opcode.SVC:
-                    if (!registers.intEnabled(Interrupt.IClass.SVC)) {
+                    if (!registers.intEnabled(Interrupt.IntClass.SVC)) {
                         Logger.fmterr("SVC is disabled");
                         break;
                     }
-                    svcInt = new Interrupt(Interrupt.IClass.SVC, operand);
+                    svcInt = new Interrupt(Interrupt.IntClass.SVC, operand);
                     break;
             }
         }
@@ -210,17 +205,17 @@ public class Machine {
 
                 // jumps
                 case Opcode.JEQ:
-                    if (registers.isEqual()) {
+                    if (registers.ccIsEqual()) {
                         registers.setPC(resolveAddr(flags, operand));
                     };
                     break;
                 case Opcode.JGT:
-                    if (registers.isGreater()) {
+                    if (registers.ccIsGreater()) {
                         registers.setPC(resolveAddr(flags, operand));
                     };
                     break;
                 case Opcode.JLT:
-                    if (registers.isLower()) {
+                    if (registers.ccIsLower()) {
                         registers.setPC(resolveAddr(flags, operand));
                     };
                     break;
@@ -265,7 +260,7 @@ public class Machine {
                 case Opcode.DIV:
                     int divisor = SICXE.swordToInt(loadWord(flags, operand));
                     if (divisor == 0) {
-                        System.out.println("division by zero");
+                        divisionByZero();
                     } else {
                         registers.setA(registers.getAs() / divisor);
                     }
@@ -356,6 +351,7 @@ public class Machine {
         private int resolveAddr(Flags flags, int addr) {
             if (flags.isIndirect()) {
                 addr = memory.getWordRaw(addr);
+                // SicTools extension
                 if (flags.isIndexed())
                     addr += registers.getXs();
             }
@@ -363,15 +359,15 @@ public class Machine {
         }
 
         private void lps(int addr) throws ReadDataBreakpointException {
-            registers.setSW(memory.getWord(addr+6));
-            registers.setPC(memory.getWord(addr+9));
-            registers.setA(memory.getWord(addr+12));
-            registers.setX(memory.getWord(addr+15));
-            registers.setL(memory.getWord(addr+18));
-            registers.setB(memory.getWord(addr+21));
-            registers.setS(memory.getWord(addr+24));
-            registers.setT(memory.getWord(addr+27));
-            registers.setF(memory.getFloat(addr+30));
+            registers.setSW(memory.getWordRaw(addr+6));
+            registers.setPC(memory.getWordRaw(addr+9));
+            registers.setA(memory.getWordRaw(addr+12));
+            registers.setX(memory.getWordRaw(addr+15));
+            registers.setL(memory.getWordRaw(addr+18));
+            registers.setB(memory.getWordRaw(addr+21));
+            registers.setS(memory.getWordRaw(addr+24));
+            registers.setT(memory.getWordRaw(addr+27));
+            registers.setF(memory.getFloatRaw(addr+30));
         }
 
     }
@@ -383,9 +379,9 @@ public class Machine {
 
         @Override
         public void execute() throws DataBreakpointException {
-            if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
-                programInt = new Interrupt(Interrupt.IClass.PROGRAM,
-                        Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
+            if ( registers.intEnabled(Interrupt.IntClass.PROGRAM)) {
+                programInt = new Interrupt(Interrupt.IntClass.PROGRAM,
+                        Interrupt.ProgramIntCode.ILLEGAL_INSTRUCTION);
             } else {
                 Logger.fmterr("Invalid opcode '%d'.", opcode);
             }
@@ -403,11 +399,20 @@ public class Machine {
     }
 
     private void invalidAddressing() {
-        if ( registers.intEnabled(Interrupt.IClass.PROGRAM)) {
-            programInt = new Interrupt(Interrupt.IClass.PROGRAM,
-                    Interrupt.ProgICODE.ILLEGAL_INSTRUCTION);
+        if ( registers.intEnabled(Interrupt.IntClass.PROGRAM)) {
+            programInt = new Interrupt(Interrupt.IntClass.PROGRAM,
+                    Interrupt.ProgramIntCode.ILLEGAL_INSTRUCTION);
         } else {
             Logger.err("Invalid addressing.");
+        }
+    }
+
+    private void divisionByZero() {
+        if ( registers.intEnabled(Interrupt.IntClass.PROGRAM)) {
+            programInt = new Interrupt(Interrupt.IntClass.PROGRAM,
+                    Interrupt.ProgramIntCode.ILLEGAL_INSTRUCTION);
+        } else {
+            Logger.err("division by zero");
         }
     }
 
@@ -501,7 +506,7 @@ public class Machine {
                 if (flags.isSimple()) {
                     operand += registers.getXs();
                 } else if (flags.isIndirect()) {
-                    // Method resolveAddr will add X after first resolution.
+                    // Method resolveAddr will add X after the first resolution.
                     // I hope empty elif clause is more readable than
                     // negation of this condition for invalid addressing.
                 } else {
@@ -519,18 +524,20 @@ public class Machine {
     public void step() throws DataBreakpointException {
         if (!registers.isIdle()) {
             Instruction instruction = fetchDecode();
-            if (instruction.isPrivileged()
-                    && !registers.isSupervisor()
-                    && registers.intEnabled(Interrupt.IClass.PROGRAM)) {
-                programInt = new Interrupt(Interrupt.IClass.PROGRAM,
-                        Interrupt.ProgICODE.PRIVILEGED_INSTRUCTION);
+            if (instruction.isPrivileged() && !registers.isSupervisor()) {
+                if (registers.intEnabled(Interrupt.IntClass.PROGRAM)) {
+                    programInt = new Interrupt(Interrupt.IntClass.PROGRAM,
+                            Interrupt.ProgramIntCode.PRIVILEGED_INSTRUCTION);
+                } else {
+                    Logger.err("skipping execution of privileged instruction");
+                }
             } else {
                 instruction.execute();
             }
         }
         timer--;
-        if (timer <= 0 && registers.intEnabled(Interrupt.IClass.TIMER)) {
-            timerInt = new Interrupt(Interrupt.IClass.TIMER, 0);
+        if (timer <= 0 && registers.intEnabled(Interrupt.IntClass.TIMER) && timerInt == null) {
+            timerInt = new Interrupt(Interrupt.IntClass.TIMER);
         }
         triggerInterrupts();
     }

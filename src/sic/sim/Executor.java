@@ -85,8 +85,8 @@ public class Executor {
             hasChanged = true;
             // check if the same instruction: halt J halt
             if (oldPC == machine.registers.getPC()
-                && !machine.registers.intEnabled(Interrupt.IClass.TIMER)
-                && !machine.registers.intEnabled(Interrupt.IClass.IO)) {
+                && !machine.registers.intEnabled(Interrupt.IntClass.TIMER)
+                && !machine.registers.intEnabled(Interrupt.IntClass.IO)) {
                 stop();
                 if (printStats) {
                     System.out.printf("Instructions executed: %d\n", machine.getInstructionCount());

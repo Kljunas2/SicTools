@@ -4,7 +4,7 @@ import sic.sim.breakpoints.ReadDataBreakpointException;
 import sic.sim.breakpoints.WriteDataBreakpointException;
 
 public class Interrupt {
-    public enum IClass {
+    public enum IntClass {
         SVC(8),
         PROGRAM(4),
         TIMER(2),
@@ -12,12 +12,12 @@ public class Interrupt {
 
         public final int value;
 
-        IClass(int value) {
+        IntClass(int value) {
             this.value = value;
         }
     }
 
-    public enum ProgICODE {
+    public enum ProgramIntCode {
         ILLEGAL_INSTRUCTION(0x00),
         PRIVILEGED_INSTRUCTION(0x01),
         ADDR_OUT_OF_RANGE(0x02),
@@ -30,26 +30,30 @@ public class Interrupt {
 
         public final int value;
 
-        ProgICODE(int value) {
+        ProgramIntCode(int value) {
             this.value = value;
         }
     }
 
-    public IClass CLASS;
-    private int ICODE;
+    public IntClass intClass;
+    private int intCode = 0;
 
-    public Interrupt(IClass iclass, int icode) {
-        CLASS = iclass;
-        ICODE = icode;
+    public Interrupt(IntClass intClass) {
+        this.intClass = intClass;
     }
 
-    public Interrupt(IClass iclass, ProgICODE icode) {
-        CLASS = iclass;
-        ICODE = icode.value;
+    public Interrupt(IntClass intClass, int intCode) {
+        this.intClass = intClass;
+        this.intCode = intCode;
     }
 
-    public static int getWorkArea(IClass CLASS) {
-        switch (CLASS) {
+    public Interrupt(IntClass intClass, ProgramIntCode intCode) {
+        this.intClass = intClass;
+        this.intCode = intCode.value;
+    }
+
+    public int getWorkArea() {
+        switch (intClass) {
             case SVC:
                 return 0x100;
             case PROGRAM:
@@ -62,28 +66,21 @@ public class Interrupt {
         return -1;
     }
 
-    private void saveRegisters(Registers registers, Memory memory) throws WriteDataBreakpointException {
-        int addr = Interrupt.getWorkArea(CLASS);
-        memory.setWord(addr+6, registers.getSW());
-        memory.setWord(addr+9, registers.getPC());
-        memory.setWord(addr+12, registers.getA());
-        memory.setWord(addr+15, registers.getX());
-        memory.setWord(addr+18, registers.getL());
-        memory.setWord(addr+21, registers.getB());
-        memory.setWord(addr+24, registers.getS());
-        memory.setWord(addr+27, registers.getT());
-        memory.setFloat(addr+30, registers.getF());
-    }
-
-    private void restoreRegisters(Registers registers, Memory memory) throws ReadDataBreakpointException {
-        int addr = Interrupt.getWorkArea(CLASS);
-    }
-
     public void trigger(Registers registers, Memory memory)  throws ReadDataBreakpointException, WriteDataBreakpointException {
-        saveRegisters(registers, memory);
-        int addr = Interrupt.getWorkArea(CLASS);
-        registers.setSW(memory.getWord(addr));
-        registers.setPC(memory.getWord(addr+3));
-        registers.setICODE(ICODE);
+        int addr = getWorkArea();
+
+        memory.setWordRaw(addr+6, registers.getSW());
+        memory.setWordRaw(addr+9, registers.getPC());
+        memory.setWordRaw(addr+12, registers.getA());
+        memory.setWordRaw(addr+15, registers.getX());
+        memory.setWordRaw(addr+18, registers.getL());
+        memory.setWordRaw(addr+21, registers.getB());
+        memory.setWordRaw(addr+24, registers.getS());
+        memory.setWordRaw(addr+27, registers.getT());
+        memory.setFloatRaw(addr+30, registers.getF());
+
+        registers.setSW(memory.getWordRaw(addr));
+        registers.setPC(memory.getWordRaw(addr+3));
+        registers.setIntCode(intCode);
     }
 }
