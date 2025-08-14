@@ -123,6 +123,18 @@ public class CPUView {
                 updateView();
             }
         });
+        regF.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent evt) {
+                registers.setF(SICXE.bitsToFloat(Long.parseLong(regF.getText(), 16)));
+                updateView();
+            }
+        });
+        regFF.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent evt) {
+                registers.setF(Double.parseDouble(regFF.getText()));
+                updateView();
+            }
+        });
         updateView();
     }
 
