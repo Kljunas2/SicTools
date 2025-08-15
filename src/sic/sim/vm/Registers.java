@@ -203,7 +203,7 @@ public class Registers {
             SW.CC = 0;
         }
         SW.MASK = (value>>8)&0xf;
-        SW.INT_CODE = (value>>16)&0x8;
+        SW.INT_CODE = (value>>16)&0xff;
     }
 
     public void setCC(int compare) {
