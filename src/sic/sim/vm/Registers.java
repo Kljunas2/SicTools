@@ -206,6 +206,27 @@ public class Registers {
         SW.INT_CODE = (value>>16)&0xff;
     }
 
+    public String explainSW() {
+        int cc = 0;
+        if (SW.CC > 0) {
+            cc = 0x1;
+        } else if (SW.CC < 0) {
+            cc = 0x2;
+        }
+        // I hate java
+        String mask = String.format("%s%s%s%s",
+                intEnabled(Interrupt.IntClass.SVC)     ? "S" : "-",
+                intEnabled(Interrupt.IntClass.PROGRAM) ? "P" : "-",
+                intEnabled(Interrupt.IntClass.TIMER)   ? "T" : "-",
+                intEnabled(Interrupt.IntClass.IO)      ? "I" : "-");
+
+        return String.format("<b>ICODE:</b> 0x%02x <b>MASK:</b> %s <b>CC:</b> %d<br>"
+                + "<b>ID:</b> %d <b>IDLE:</b> %s <b>MODE:</b> <span style='%s'>%s</span>",
+                SW.INT_CODE, mask, cc,
+                SW.ID, SW.IDLE == 0 ? "R" : "I", SW.MODE == 1 ? "color: red;" : "",
+                SW.MODE == 1 ? "S" : "U");
+    }
+
     public void setCC(int compare) {
         SW.CC = compare;
     }
