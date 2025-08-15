@@ -20,8 +20,6 @@ public class Machine {
     public final Memory memory = new Memory(MAX_ADDRESS+1);
     public final Devices devices = new Devices(MAX_DEVICE+1);
 
-    private int timer = 0;
-
     private Interrupt svcInt = null;
     private Interrupt programInt = null;
     private Interrupt timerInt = null;
@@ -302,7 +300,7 @@ public class Machine {
                 case Opcode.LPS:
                     lps(operand); break;
                 case Opcode.STI:
-                    timer = loadWord(flags, operand); break;
+                    registers.setTimer(loadWord(flags, operand)); break;
                 case Opcode.SSK:
                     notImplemented("SSK"); break;
             }
@@ -535,8 +533,8 @@ public class Machine {
                 instruction.execute();
             }
         }
-        timer--;
-        if (timer <= 0 && registers.intEnabled(Interrupt.IntClass.TIMER) && timerInt == null) {
+        registers.tickTimer();
+        if (registers.getTimer() <= 0 && registers.intEnabled(Interrupt.IntClass.TIMER) && timerInt == null) {
             timerInt = new Interrupt(Interrupt.IntClass.TIMER);
         }
         triggerInterrupts();

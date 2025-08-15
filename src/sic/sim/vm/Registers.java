@@ -18,6 +18,8 @@ public class Registers {
     // SIC/XE 48-bit float register
     private double F;
 
+    private int timer = 0;
+
     private class StatusWord {
         // 0 = user, 1 = supervisor
         public int MODE = 1;
@@ -210,6 +212,18 @@ public class Registers {
 
     public boolean intEnabled(Interrupt.IntClass c) {
         return (SW.MASK & c.value) > 0;
+    }
+
+    public int getTimer() {
+        return timer;
+    }
+
+    public void setTimer(int timer) {
+        this.timer = timer;
+    }
+
+    public void tickTimer() {
+        timer--;
     }
 
     // ***** getter/setter by register index ****
