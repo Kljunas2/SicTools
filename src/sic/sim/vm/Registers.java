@@ -315,6 +315,7 @@ public class Registers {
         A = X = L = 0;
         B = S = T = 0;
         F = 0;
+        timer = 0;
         SW = new StatusWord();
     }
 
