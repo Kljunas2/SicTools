@@ -425,6 +425,7 @@ public class CPUView {
 
         // start/stop button
         btnStartStop = new JButton();
+        btnStartStop.setText("Start");
         btnStartStop.setMnemonic('S');
         btnStartStop.setDisplayedMnemonicIndex(0);
         gbc = new GridBagConstraints();
